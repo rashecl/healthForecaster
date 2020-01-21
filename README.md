@@ -3,8 +3,7 @@ Personalized predictions of health outcomes of lifestyle interventions
 
 
 
-To set up the development environment: 
-# set the environment name here
+# Set up the development environment: 
 
 conda create -n insight python=3
 
