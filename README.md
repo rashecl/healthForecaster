@@ -13,6 +13,8 @@ conda install altair black bqplot ipyvolume ipywebrtc ipywidgets jupyter jupyter
 
 conda install -c conda-forge nodejs
 
+conda install bokeh
+
 jupyter labextension install @jupyter-widgets/jupyterlab-manager
 
 jupyter labextension install ipyvolume jupyter-threejs @jupyterlab/toc
