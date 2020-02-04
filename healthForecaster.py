@@ -90,10 +90,21 @@ def getBiomarkerData():
 
 def createSubjectsWithBiomarkersCSV():
     surveyData = getSurveyData()
-    surveyData.iloc[:,[0,1,5,3]].to_csv('./data/subjectsWithBiomarkers.csv')
+    surveyData = surveyData.iloc[:,[0,1,5,3]]
+    surveyData.columns = ['idind', 'hhid', 'commid', 'Age']
+    surveyData.to_csv('./data/subjectsWithBiomarkers.csv')
+
+# createSubjectsWithBiomarkersCSV()
+featureMap = pd.read_csv('featureTableMap.csv')
+subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind','Age']) # Could add others too'hhid','commid'
+
     
 def createGenderCSV():
     print('Extracting gender data...')
+    subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind','hhid','commid'])
+    subjects = subjects.astype({'idind': 'int',
+                                'hhid': 'int',
+                                'commid': 'int'})
     def getGender(subjectIdx, idind_1, idind_2, sex_1, sex_2):
         gender = np.nan
         if subjects.idind[subjectIdx] in idind_1:
@@ -113,10 +124,6 @@ def createGenderCSV():
             print(str(100*subjectIdx/9548) + '% complete')       
         return gender
     
-    subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind','hhid','commid'])
-    subjects = subjects.astype({'idind': 'int',
-                                'hhid': 'int',
-                                'commid': 'int'})
     relations = pd.read_csv('./data/relationmast_pub_00_2009only.csv')
     idind_1 = list(relations.idind_1)
     idind_2 = list(relations.idind_2)
@@ -130,8 +137,8 @@ def createGenderCSV():
 
 def createSleep_ScreenTimeCSV():
     sleep_screenTime = pd.read_csv('./data/pact_12_2009only.csv',usecols = ['idind', 'u324', 'u339','u340_mn', 'u341_mn','u508', 'u509_mn','u510_mn','u345','u346_mn', 'u347_mn'])
-    sleep_screenTime.columns = ['idind', 'hours_of_sleep', 'watchTV','TVhours_week','TVhours_weekend','goesOnline','online_week','online_weekend', 'play_videoGames', 'videoGames_week', 'videoGames_weekend']
-    sleep_screenTime = sleep_screenTime.replace({'watchTV':{9:1,np.nan:1}, 'goesOnline':{9:0,np.nan:0}, 'play_videoGames':{9:0,np.nan:0}, 'hours_of_sleep':{-9: np.nan}})
+    sleep_screenTime.columns = ['idind', 'Hours_of_sleep', 'watchTV','TVhours_week','TVhours_weekend','goesOnline','online_week','online_weekend', 'play_videoGames', 'videoGames_week', 'videoGames_weekend']
+    sleep_screenTime = sleep_screenTime.replace({'watchTV':{9:1,np.nan:1}, 'goesOnline':{9:0,np.nan:0}, 'play_videoGames':{9:0,np.nan:0}, 'Hours_of_sleep':{-9: np.nan}})
     sleep_screenTime = sleep_screenTime.fillna(sleep_screenTime.median())
     sleep_screenTime_subjects= list(sleep_screenTime.idind)
 
@@ -164,19 +171,17 @@ def createSleep_ScreenTimeCSV():
             idx = sleep_screenTime_subjects.index(subjects.idind[subjectIdx])
         else:
             return np.nan
-        return sleep_screenTime.hours_of_sleep[idx]
+        return sleep_screenTime.Hours_of_sleep[idx]
     
     subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind'])
-    dailyScreenTime = [getDailyScreenTime(i) for i in range(len(subjects))]
-    hours_of_sleep = [getDailySleepTime(i) for i in range(len(subjects))]
-    d = {'idind': subjects.idind, 'dailyScreenTime': dailyScreenTime, 'hours_of_sleep': hours_of_sleep}
+    Daily_screen_time = [getDailyScreenTime(i) for i in range(len(subjects))]
+    Hours_of_sleep = [getDailySleepTime(i) for i in range(len(subjects))]
+    d = {'idind': subjects.idind, 'Daily_screen_time': Daily_screen_time, 'Hours_of_sleep': Hours_of_sleep}
     df = pd.DataFrame(data=d)
     df.to_csv('./data/sleep_screentime.csv')
     return df    
 
 # Define these variables for default inputs for the functions below:
-featureMap = pd.read_csv('featureTableMap.csv')
-subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind','Age']) # Could add others too'hhid','commid'
 
 def preprocessRawChinaHealthStudyData():
     createSubjectsWithBiomarkersCSV()
@@ -185,19 +190,22 @@ def preprocessRawChinaHealthStudyData():
     createSleep_ScreenTimeCSV()
 
 
-def getAndMergeTables(subjects = subjects, tableNum = 2):
+def getAndMergeTables(subjects = subjects, tableNum = 1):
     newDF = pd.read_csv('./data/'+featureMap['tablename'][tableNum],usecols = eval(featureMap['varnames'][tableNum]))
+    
     newDF.columns = eval(featureMap['newnames'][tableNum])
+
     try: 
         replaceDict = eval(featureMap['replacements'][tableNum])
+        print('This should not work for surveys')
         newDF.replace(replaceDict, inplace = True)
     except: 
         print('Could not replace values or none exists.')
-        pass
+
     subjects = pd.merge(subjects,newDF,how='left', on ='idind')
     print(list(newDF.columns))
     print(subjects.columns)
-    print(subjects.describe())
+    print(subjects)
     return subjects
 
 def createDataTable():
@@ -209,7 +217,7 @@ def createDataTable():
     
     print('One-hot-encoding medical conditions...')   
     # One-hot-encode medical conditions: 
-    medicalConditions = subjects['Medical_Condition'].fillna('noReport')
+    medicalConditions = subjects['Medical_condition'].fillna('noReport')
     medicalConditions = medicalConditions.fillna('noReport')
     medicalConditions = pd.DataFrame(medicalConditions)
     enc = preprocessing.OneHotEncoder(categories = "auto")
@@ -218,7 +226,7 @@ def createDataTable():
     columnNames = enc.categories_[0]
     medicalConditions = pd.DataFrame(data,columns=columnNames)
     # Replace old medical condition column to one-hot-encoded vars:
-    subjects.drop('Medical_Condition', axis=1, inplace=True)
+    subjects.drop('Medical_condition', axis=1, inplace=True)
     subjects=pd.concat([subjects,medicalConditions], axis=1, ignore_index=False)
 
     # Add physical exam: 
@@ -243,7 +251,6 @@ def createDataTable():
 
     # Median impute missing data: 
     subjects = subjects.fillna(subjects.median())
-    print(subjects['Activity_level'])
     #Change data types: 
     subjects = subjects.astype({'idind': 'int',
                     'Sex': 'int',
@@ -308,34 +315,35 @@ def createHealthForecasterModels():
     import pickle
     ## Aggregate relevant data for ML:
     data = createDataTable()
-    fixedFactors = ['age', 'sex', 'urban', 'ENT', 'OBGYN', 'Old_age_midLife_syndrome', 'alcohol_poisoning',
-                    'dermatological', 'digestive', 'endocrine', 'heart', 'hematological', 'infectious_parasitic', 'injury',
-                    'muscular_rheumatological', 'neurological', 'noDiagnosis', 'noReport', 'other', 'pyschiatric', 'respiratory',
-                    'sexualDysfunction', 'tumor', 'unknown', 'urinary', 'highBP', 'diabetes', 'heart_attack', 'internal_bleeding', 
-                    'pregnant','height']
+    fixedFactors = ['Age', 'Sex', 'Urban', 'ENT', 'OBGYN', 'Old_age_midLife_syndrome', 'alcohol_poisoning',
+                'dermatological', 'digestive', 'endocrine', 'heart', 'hematological', 'infectious_parasitic', 'injury',
+                'muscular_rheumatological', 'neurological', 'noDiagnosis', 'noReport', 'other', 'pyschiatric', 'respiratory',
+                'sexualDysfunction', 'tumor', 'unknown', 'urinary', 'High_BP', 'Diabetes', 'Heart_attack', 'Internal_bleeding', 
+                'Pregnant','Height']
     fixedFactorIdxs = [list(data.columns).index(varName) for varName in fixedFactors]
 
-    lifestyleFactors = ['weight', 'smoker', 'cups_water_daily', 'alcohol_frequency', 'kcal', 'carbo', 'fat', 'protn', 'activityLevel', 'dailyScreenTime', 'hours_of_sleep']
+    lifestyleFactors = ['Smoker', 'Cups_water_daily', 'Alcohol_frequency', 'Weight', 'Kcal', 'Carbs', 'Fat', 'Protein', 'Activity_level', 'Daily_screen_time', 'Hours_of_sleep']
     lifestyleFactorIdxs = [list(data.columns).index(varName) for varName in lifestyleFactors]
-    responseVariables = ['urea', 'ua', 'apo_a', 'lp_a', 'hs_crp', 'cre', 'hdl_c', 'ldl_c',
-                        'apo_b', 'mg', 'fet', 'ins', 'hgb', 'wbc', 'rbc', 'plt', 'glu_field',
-                        'hba1c', 'tp', 'alb', 'glucose', 'tg', 'tc', 'alt', 'trf', 'trf_r', 'systol', 'diastol']
+    responseVariables = ['Urea', 'Uric_acid', 'APO_A', 'Lipoprotein_A','High_sensitivity_CRP', 'Creatinine',
+                         'HDL_C', 'LDL_C', 'APO_B', 'Mg', 'Ferritin', 'Insulin', 'Hemoglobin', 'White_blood_cell',
+                         'Red_blood_cell', 'Platelet', 'Glucose_field','HbA1c', 'Total_protein','Albumin', 'Glucose',
+                         'Triglycerides', 'Total_cholestorol', 'Alanine_aminotranserferase', 'Transferrin', 'Transferrin_receptor','Systol', 'Diastol']
 
     responseVariableIdxs = [list(data.columns).index(varName) for varName in responseVariables]
-    inputFeatures = fixedFactors+lifestyleFactors
 
-    fatRelatedIdxs = [responseVariables.index('apo_a'), 
-                      responseVariables.index('lp_a'), 
-                      responseVariables.index('hdl_c'),
-                      responseVariables.index('ldl_c'),
-                      responseVariables.index('apo_b'),
-                      responseVariables.index('tg'),
-                      responseVariables.index('tc')]
-    gluRelatedIdxs = [responseVariables.index('ins'),
-                          responseVariables.index('hba1c'),
-                          responseVariables.index('glucose')]
+    fatRelatedIdxs = [responseVariables.index('APO_A'), 
+                      responseVariables.index('Lipoprotein_A'), 
+                      responseVariables.index('HDL_C'),
+                      responseVariables.index('LDL_C'),
+                      responseVariables.index('APO_B'),
+                      responseVariables.index('Triglycerides'),
+                      responseVariables.index('Total_cholestorol')]
+    gluRelatedIdxs = [responseVariables.index('Insulin'),
+                          responseVariables.index('HbA1c'),
+                          responseVariables.index('Glucose')]
 
-    X = data[fixedFactors + lifestyleFactors].to_numpy()
+    inputFeatures = fixedFactors + lifestyleFactors
+    X = data[inputFeatures].to_numpy()
     Y = data[responseVariables].to_numpy()
 
     # Y_zscore = (Y-np.mean(Y,axis=0))/np.std(Y,axis=0)
@@ -352,7 +360,7 @@ def createHealthForecasterModels():
     #                 'pregnant','height']
     # fixedFactorIdxs2 = [list(data.columns).index(varName) for varName in fixedFactors]
 
-    # lifestyleFactors2 = ['smoker', 'cups_water_daily', 'alcohol_frequency', 'kcal', 'carbo', 'fat', 'protn', 'activityLevel', 'dailyScreenTime', 'hours_of_sleep']
+    # lifestyleFactors2 = ['smoker', 'cups_water_daily', 'Alcohol_frequency', 'kcal', 'carbo', 'fat', 'protn', 'Activity_level', 'Daily_screen_time', 'Hours_of_sleep']
     # lifestyleFactorIdxs2 = [list(data.columns).index(varName) for varName in lifestyleFactors]
     # responseVariables2 = ['weight']
     # responseVariableIdxs2 = [list(data.columns).index(varName) for varName in responseVariables2]
@@ -417,47 +425,47 @@ def parseInputs(inputDict,inputFeatures):
     currentValues = np.zeros(len(inputFeatures)) 
     futureValues = np.zeros(len(inputFeatures)) 
     # Age
-    currentValues[inputFeatures.index('age')] = inputDict['age']
-    futureValues[inputFeatures.index('age')] = inputDict['age']
+    currentValues[inputFeatures.index('Age')] = inputDict['Age']
+    futureValues[inputFeatures.index('Age')] = inputDict['Age']
     # Sex
-    if inputDict['sex'] == 'M':
-        currentValues[inputFeatures.index('sex')] = 1
-        futureValues[inputFeatures.index('sex')] = 1
+    if inputDict['Sex'] == 'M':
+        currentValues[inputFeatures.index('Sex')] = 1
+        futureValues[inputFeatures.index('Sex')] = 1
     else: 
-        currentValues[inputFeatures.index('sex')] = 0
-        futureValues[inputFeatures.index('sex')] = 0
+        currentValues[inputFeatures.index('Sex')] = 0
+        futureValues[inputFeatures.index('Sex')] = 0
 
     # Location:
-    if inputDict['location'] == 'urban':
-        currentValues[inputFeatures.index('urban')] = 1
-        futureValues[inputFeatures.index('urban')] = 1
+    if inputDict['Location'] == 'Urban':
+        currentValues[inputFeatures.index('Urban')] = 1
+        futureValues[inputFeatures.index('Urban')] = 1
     else: 
-        currentValues[inputFeatures.index('urban')] = 0
-        futureValues[inputFeatures.index('urban')] = 0
+        currentValues[inputFeatures.index('Urban')] = 0
+        futureValues[inputFeatures.index('Urban')] = 0
 
     # Physical exam/Medical Conditions: 
     
-    currentValues[inputFeatures.index('height')] = inputDict['height']*2.54
-    futureValues[inputFeatures.index('height')] = inputDict['height']*2.54
+    currentValues[inputFeatures.index('Height')] = inputDict['Height']*2.54
+    futureValues[inputFeatures.index('Height')] = inputDict['Height']*2.54
     
-    currentValues[inputFeatures.index(inputDict['medicalCondition'])] = 1
-    futureValues[inputFeatures.index(inputDict['medicalCondition'])] = 1
+    currentValues[inputFeatures.index(inputDict['Medical_condition'])] = 1
+    futureValues[inputFeatures.index(inputDict['Medical_condition'])] = 1
 
-    if inputDict['pregnant']: 
-        currentValues[inputFeatures.index('pregnant')] = 1
+    if inputDict['Pregnant']: 
+        currentValues[inputFeatures.index('Pregnant')] = 1
         futureValues[inputFeatures.index('pregnant')] = 1
     if inputDict['diabetes']: 
-        currentValues[inputFeatures.index('diabetes')] = 1
-        futureValues[inputFeatures.index('diabetes')] = 1
-    if inputDict['highBP']:
-        currentValues[inputFeatures.index('highBP')] = 1
-        futureValues[inputFeatures.index('highBP')] = 1
-    if inputDict['heart_attack']:
-        currentValues[inputFeatures.index('heart_attack')] = 1
-        futureValues[inputFeatures.index('heart_attack')] = 1
-    if inputDict['internal_bleeding']:
-        currentValues[inputFeatures.index('internal_bleeding')] = 1
-        futureValues[inputFeatures.index('internal_bleeding')] = 1
+        currentValues[inputFeatures.index('Diabetes')] = 1
+        futureValues[inputFeatures.index('Diabetes')] = 1
+    if inputDict['High_BP']:
+        currentValues[inputFeatures.index('High_BP')] = 1
+        futureValues[inputFeatures.index('High_BP')] = 1
+    if inputDict['Heart_attack']:
+        currentValues[inputFeatures.index('Heart_attack')] = 1
+        futureValues[inputFeatures.index('Heart_attack')] = 1
+    if inputDict['Internal_bleeding']:
+        currentValues[inputFeatures.index('Internal_bleeding')] = 1
+        futureValues[inputFeatures.index('Internal_bleeding')] = 1
     
     # currentValues = futureValues = inputValues # This may have done some weird cloning thing?
 
@@ -465,71 +473,71 @@ def parseInputs(inputDict,inputFeatures):
     
     # Habits:
     if inputDict['currAlcohol_frequency'] == 'daily':
-        currentValues[inputFeatures.index('alcohol_frequency')] = 1
+        currentValues[inputFeatures.index('Alcohol_frequency')] = 1
     elif inputDict['currAlcohol_frequency'] == '3-4 times a week':
-        currentValues[inputFeatures.index('alcohol_frequency')] = 2
+        currentValues[inputFeatures.index('Alcohol_frequency')] = 2
     elif inputDict['currAlcohol_frequency'] == 'Once or twice a week':
-        currentValues[inputFeatures.index('alcohol_frequency')] = 3
+        currentValues[inputFeatures.index('Alcohol_frequency')] = 3
     elif inputDict['currAlcohol_frequency'] == 'Once or twice a month':
-        currentValues[inputFeatures.index('alcohol_frequency')] = 4
+        currentValues[inputFeatures.index('Alcohol_frequency')] = 4
     elif inputDict['currAlcohol_frequency'] == 'No more than once a month':
-        currentValues[inputFeatures.index('alcohol_frequency')] = 5
+        currentValues[inputFeatures.index('Alcohol_frequency')] = 5
     else: 
-        currentValues[inputFeatures.index('alcohol_frequency')] = 3
+        currentValues[inputFeatures.index('Alcohol_frequency')] = 3
 
     currentValues[inputFeatures.index('cups_water_daily')] = inputDict['currCups_water_daily']
     
     if inputDict['currSmoker']: 
-        currentValues[inputFeatures.index('smoker')] = 1
+        currentValues[inputFeatures.index('Smoker')] = 1
     
     # Diet/Weight:
-    currentValues[inputFeatures.index('kcal')] = inputDict['currCarbo']*4 + inputDict['currProtn']*4 + inputDict['currFat']*9 #currKcal
-    currentValues[inputFeatures.index('carbo')] = inputDict['currCarbo']
-    currentValues[inputFeatures.index('fat')] = inputDict['currFat']
-    currentValues[inputFeatures.index('protn')] = inputDict['currProtn']
+    currentValues[inputFeatures.index('Kcal')] = inputDict['currCarbo']*4 + inputDict['currProtn']*4 + inputDict['currFat']*9 #currKcal
+    currentValues[inputFeatures.index('Carbs')] = inputDict['currCarbo']
+    currentValues[inputFeatures.index('Fat')] = inputDict['currFat']
+    currentValues[inputFeatures.index('Protein')] = inputDict['currProtn']
     
     # Activity
-    currentValues[inputFeatures.index('activityLevel')] = inputDict['currActivityLevel']
-    currentValues[inputFeatures.index('dailyScreenTime')] = inputDict['currDailyScreenTime']
-    currentValues[inputFeatures.index('hours_of_sleep')] = inputDict['currHours_of_sleep']
+    currentValues[inputFeatures.index('Activity_level')] = inputDict['currActivityLevel']
+    currentValues[inputFeatures.index('Daily_screen_time')] = inputDict['currDailyScreenTime']
+    currentValues[inputFeatures.index('Hours_of_sleep')] = inputDict['currHours_of_sleep']
     
-    if 'weight' in inputFeatures:
-        currentValues[inputFeatures.index('weight')] = inputDict['currWeight']/2.205
+    if 'Weight' in inputFeatures:
+        currentValues[inputFeatures.index('Weight')] = inputDict['currWeight']/2.205
         
     ### Lifestyle intervention
     
     # Habits:
     if inputDict['intAlcohol_frequency'] == 'daily':
-        futureValues[inputFeatures.index('alcohol_frequency')] = 1
+        futureValues[inputFeatures.index('Alcohol_frequency')] = 1
     elif inputDict['intAlcohol_frequency'] == '3-4 times a week':
-        futureValues[inputFeatures.index('alcohol_frequency')] = 2
+        futureValues[inputFeatures.index('Alcohol_frequency')] = 2
     elif inputDict['intAlcohol_frequency'] == 'Once or twice a week':
-        futureValues[inputFeatures.index('alcohol_frequency')] = 3
+        futureValues[inputFeatures.index('Alcohol_frequency')] = 3
     elif inputDict['intAlcohol_frequency'] == 'Once or twice a month':
-        futureValues[inputFeatures.index('alcohol_frequency')] = 4
+        futureValues[inputFeatures.index('Alcohol_frequency')] = 4
     elif inputDict['intAlcohol_frequency'] == 'No more than once a month':
-        futureValues[inputFeatures.index('alcohol_frequency')] = 5
+        futureValues[inputFeatures.index('Alcohol_frequency')] = 5
     else: 
-        futureValues[inputFeatures.index('alcohol_frequency')] = 3
+        futureValues[inputFeatures.index('Alcohol_frequency')] = 3
 
-    futureValues[inputFeatures.index('cups_water_daily')] = inputDict['intCups_water_daily']
+    futureValues[inputFeatures.index('Cups_water_daily')] = inputDict['intCups_water_daily']
     
     if inputDict['intSmoker']: 
-        futureValues[inputFeatures.index('smoker')] = 1
+        futureValues[inputFeatures.index('Smoker')] = 1
     
     # Diet/Weight:
-    futureValues[inputFeatures.index('kcal')] = inputDict['intCarbo']*4 + inputDict['intProtn']*4 + inputDict['intFat']*9 #currKcal
-    futureValues[inputFeatures.index('carbo')] = inputDict['intCarbo']
-    futureValues[inputFeatures.index('fat')] = inputDict['intFat']
-    futureValues[inputFeatures.index('protn')] = inputDict['intProtn']
+    futureValues[inputFeatures.index('Kcal')] = inputDict['intCarbo']*4 + inputDict['intProtn']*4 + inputDict['intFat']*9 #currKcal
+    futureValues[inputFeatures.index('Carbs')] = inputDict['intCarbo']
+    futureValues[inputFeatures.index('Fat')] = inputDict['intFat']
+    futureValues[inputFeatures.index('Protein')] = inputDict['intProtn']
     
     # Activity
-    futureValues[inputFeatures.index('activityLevel')] = inputDict['intActivityLevel']
-    futureValues[inputFeatures.index('dailyScreenTime')] = inputDict['intDailyScreenTime']
-    futureValues[inputFeatures.index('hours_of_sleep')] = inputDict['intHours_of_sleep']
+    futureValues[inputFeatures.index('Activity_level')] = inputDict['intActivityLevel']
+    futureValues[inputFeatures.index('Daily_screen_time')] = inputDict['intDailyScreenTime']
+    futureValues[inputFeatures.index('Hours_of_sleep')] = inputDict['intHours_of_sleep']
     
-    if 'weight' in inputFeatures:
-        futureValues[inputFeatures.index('weight')] = inputDict['intWeight']/2.205
+    if 'Weight' in inputFeatures:
+        futureValues[inputFeatures.index('Weight')] = inputDict['intWeight']/2.205
     
     return currentValues, futureValues
 
