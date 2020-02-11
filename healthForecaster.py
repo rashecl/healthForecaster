@@ -371,13 +371,14 @@ def createHealthForecasterModels():
     # X_Train2, X_Test2, Y_Train2, Y_Test2, cv = shuffleAndSplit(X2, Y2, test_size=.2, n_splits=5)
 
     models = dict(ols=linear_model.LinearRegression(),
-                  lasso=linear_model.Lasso(alpha=.5),
-                  ridge=linear_model.Ridge(alpha=.5),
-                  elastic=linear_model.ElasticNet(alpha=.5, l1_ratio=0.5),
-                  randomForest = ensemble.RandomForestRegressor(random_state=0, 
-                                                               max_features = 'auto', 
-                                                               min_samples_leaf = 10,
-                                                               n_estimators = 200))
+              lasso=linear_model.Lasso(alpha=0.75),
+              ridge=linear_model.Ridge(alpha=0.75),
+              elastic=linear_model.ElasticNet(alpha=0.1, l1_ratio=0.75),
+              randomForest = ensemble.RandomForestRegressor(random_state=0, 
+                                                           max_features = 'auto', 
+                                                           min_samples_leaf = 50, #max_depth = 3,
+                                                           n_estimators = 200)
+             )
 
     # Also define models to predict z_score Target Matrix
     # models_zscore = dict(ols=linear_model.LinearRegression(),
