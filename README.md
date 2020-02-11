@@ -20,4 +20,5 @@ jupyter labextension install jupyter-threejs bqplot qgrid
 # Run the app: 
 
 bokeh serve --show --log-level=debug HF.py
+
 bokeh serve --show --log-level=debug HF_demo.py
