@@ -9,11 +9,9 @@ conda create -n insight python=3
 
 conda activate insight
 
-conda install altair black bqplot ipyvolume ipywebrtc ipywidgets jupyter jupyter_contrib_nbextensions mpld3 pandas pip pivottablejs qgrid scikit-learn scipy seaborn vega vega_datasets
+conda install altair black bqplot ipyvolume ipywebrtc ipywidgets jupyter jupyter_contrib_nbextensions mpld3 pandas pip pivottablejs qgrid scikit-learn scipy seaborn vega vega_datasets bokeh
 
 conda install -c conda-forge nodejs
-
-conda install bokeh
 
 jupyter labextension install @jupyter-widgets/jupyterlab-manager
 
