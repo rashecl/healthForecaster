@@ -98,7 +98,6 @@ def createSubjectsWithBiomarkersCSV():
 featureMap = pd.read_csv('featureTableMap.csv')
 subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind','Age']) # Could add others too'hhid','commid'
 
-    
 def createGenderCSV():
     print('Extracting gender data...')
     subjects = pd.read_csv('./data/subjectsWithBiomarkers.csv',usecols = ['idind','hhid','commid'])
@@ -205,7 +204,6 @@ def getAndMergeTables(subjects = subjects, tableNum = 1):
     subjects = pd.merge(subjects,newDF,how='left', on ='idind')
     print(list(newDF.columns))
     print(subjects.columns)
-    print(subjects)
     return subjects
 
 def createDataTable():
@@ -324,10 +322,10 @@ def createHealthForecasterModels():
 
     lifestyleFactors = ['Smoker', 'Cups_water_daily', 'Alcohol_frequency', 'Weight', 'Kcal', 'Carbs', 'Fat', 'Protein', 'Activity_level', 'Daily_screen_time', 'Hours_of_sleep']
     lifestyleFactorIdxs = [list(data.columns).index(varName) for varName in lifestyleFactors]
-    responseVariables = ['Urea', 'Uric_acid', 'APO_A', 'Lipoprotein_A','High_sensitivity_CRP', 'Creatinine',
-                         'HDL_C', 'LDL_C', 'APO_B', 'Mg', 'Ferritin', 'Insulin', 'Hemoglobin', 'White_blood_cell',
+    responseVariables = ['Insulin','Triglycerides','HDL_C', 'LDL_C','Urea', 'Uric_acid', 'APO_A', 'Lipoprotein_A','High_sensitivity_CRP', 'Creatinine',
+                         'APO_B', 'Mg', 'Ferritin', 'Hemoglobin', 'White_blood_cell',
                          'Red_blood_cell', 'Platelet', 'Glucose_field','HbA1c', 'Total_protein','Albumin', 'Glucose',
-                         'Triglycerides', 'Total_cholestorol', 'Alanine_aminotranserferase', 'Transferrin', 'Transferrin_receptor','Systol', 'Diastol']
+                         'Total_cholestorol', 'Alanine_AT', 'Transferrin', 'Transferrin_receptor','Systol', 'Diastol']
 
     responseVariableIdxs = [list(data.columns).index(varName) for varName in responseVariables]
 
@@ -415,7 +413,7 @@ def createHealthForecasterModels():
         trainedModels.update({name : mdl.fit(X,Y)})
     print('finished')
     # pickle.dump([trainedModels, trainedWeightModels, inputFeatures, responseVariables, inputFeatures2, responseVariables2], open("models.p", "wb"))
-    pickle.dump([trainedModels, inputFeatures, responseVariables], open("models.p", "wb"))
+    pickle.dump([trainedModels, inputFeatures, responseVariables, data], open("models.p", "wb"))
 
     # return trainedModels, trainedWeightModels, inputFeatures, responseVariables, inputFeatures2, responseVariables2
     return trainedModels, inputFeatures, responseVariables
@@ -453,8 +451,8 @@ def parseInputs(inputDict,inputFeatures):
 
     if inputDict['Pregnant']: 
         currentValues[inputFeatures.index('Pregnant')] = 1
-        futureValues[inputFeatures.index('pregnant')] = 1
-    if inputDict['diabetes']: 
+        futureValues[inputFeatures.index('Pregnant')] = 1
+    if inputDict['Diabetes']: 
         currentValues[inputFeatures.index('Diabetes')] = 1
         futureValues[inputFeatures.index('Diabetes')] = 1
     if inputDict['High_BP']:
@@ -485,7 +483,7 @@ def parseInputs(inputDict,inputFeatures):
     else: 
         currentValues[inputFeatures.index('Alcohol_frequency')] = 3
 
-    currentValues[inputFeatures.index('cups_water_daily')] = inputDict['currCups_water_daily']
+    currentValues[inputFeatures.index('Cups_water_daily')] = inputDict['currCups_water_daily']
     
     if inputDict['currSmoker']: 
         currentValues[inputFeatures.index('Smoker')] = 1
@@ -555,6 +553,21 @@ def plotSubjectModelPrediction(trainedModels, X, Y, responseVariables, modelName
     plt.show()
 
 
-## 
+## Helper functions
 
+def update_progress(numerator, denominator=1, taskName = 'Progress'):
+    from IPython.display import clear_output
+    bar_length = 20
+    if isinstance(numerator, int):
+        numerator = float(numerator)
+    if not isinstance(numerator, float):
+        numerator = 0
+    if numerator/denominator < 0:
+        numerator = 0
+    if numerator/denominator >= 1:
+        numerator = denominator
+    block = int(round(bar_length * (numerator/denominator)))
+    clear_output(wait = True)
+    text = taskName + ": [{0}] {1:.1f}%".format( "#" * block + "-" * (bar_length - block), (numerator/denominator) * 100)
+    print(text)
 
