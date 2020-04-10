@@ -1,7 +1,7 @@
 # healthForecaster
 Personalized predictions of health outcomes of lifestyle interventions:
 See the live app at: 
-healthforecaster.xyz
+<a href = "http://healthforecaster.xyz"> healthforecaster.xyz </a>
 
 # Set up the development environment: 
 
