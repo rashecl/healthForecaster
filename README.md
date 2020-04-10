@@ -1,5 +1,7 @@
 # healthForecaster
-Personalized predictions of health outcomes of lifestyle interventions 
+Personalized predictions of health outcomes of lifestyle interventions:
+See the live app at: 
+healthforecaster.xyz
 
 # Set up the development environment: 
 
